@@ -109,3 +109,4 @@ venv.bak/
 .DS_Store
 
 # project specific stuff
+client_secret.json

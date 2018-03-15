@@ -1,4 +1,6 @@
 # -*- coding: utf-8 -*-
+from collections import defaultdict
+from datetime import datetime as dt
 import os
 import sys
 
@@ -7,11 +9,16 @@ from selenium import webdriver
 from termcolor import colored
 
 from boto_util import upload_to_s3
+import google_sheets_util as sheets
 
 start_url = 'http://docs.house.gov/Committee/Search/Home.aspx?Keyword=truth+in+testimony'
 next_xpath = '//*[@id="MainContent_btnNext"]'
+
 pages_crawled = 1
 ttfs_found = 0
+
+sheet_name = 'crawled_at_'+ str(dt.utcnow()).replace(':', '-').replace(' ', '-')
+sheet_columns = ['meeting_id', 'meeting_title', 'meeting_status', 's3_form_url', 'orig_form_url', 'meeting_details']
 
 
 def looks_like_ttf(url):
@@ -40,7 +47,9 @@ def save_ttfs_from_page(driver):
                 continue
 
             meeting_elem = elem.find_element_by_xpath('../ancestor::li[@class="search"]')
-            info = {'orig_form_url': r.url}
+            
+            info = defaultdict(lambda:[(c, '') for c in sheet_columns])
+            info['orig_form_url'] = r.url
             info['meeting_title'] = meeting_elem.find_element_by_xpath('./h3/a').text
             info['meeting_id'] = meeting_elem.find_element_by_xpath('./h3/small').text
             info['meeting_status'] =  meeting_elem.find_element_by_xpath('./ul/small').text
@@ -56,7 +65,7 @@ def save_ttfs_from_page(driver):
                 
                 # Store metadata in google sheets
                 print colored('********* Saving metadata for: ' + file_name, 'cyan')        
-                # TODO
+                sheets.append_row(sheet_name, [info[col] for col in sheet_columns])
             else:
                 print colored('********* Would upload to S3: ' + file_name, 'yellow')        
                 print colored('********* Would save metadata for: ' + file_name, 'yellow')        
@@ -71,6 +80,9 @@ def print_crawl_summary():
 
 def crawl_it():
     global pages_crawled
+
+    sheets.new_worksheet(sheet_name)
+    sheets.append_row(sheet_name, sheet_columns)
 
     driver = webdriver.Firefox()
     driver.get(start_url)

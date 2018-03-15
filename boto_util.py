@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 import boto3
 
 def upload_to_s3(file_data, file_path, bucket_name):
