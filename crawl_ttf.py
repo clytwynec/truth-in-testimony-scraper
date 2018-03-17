@@ -93,8 +93,12 @@ def save_ttf_info(info):
 #############################################################################
 # DAYS
 
-def day_url(date):
-    return "http://docs.house.gov/Committee/Calendar/ByDay.aspx?DayID=" + date
+def day_url(daystr):
+    return "http://docs.house.gov/Committee/Calendar/ByDay.aspx?DayID=" + daystr
+
+
+def get_daystr(y, m, d):
+    return date(y, m, d).strftime("%m%d%Y")
 
 
 def get_next_date(tries_left=3):
@@ -109,11 +113,12 @@ def get_next_date(tries_left=3):
         cur_day += 1
 
     try:
-        return date(cur_year, cur_month, cur_day).strftime("%m%d%Y")
+        return get_daystr(cur_year, cur_month, cur_day)
     except:
         if not tries_left:
             raise
         return get_next_date(tries_left - 1)
+
 
 def fetch_day_sched(driver, date):
     """
@@ -267,7 +272,7 @@ def crawl_it():
             sheets.get_or_create_worksheet(sheet_name, sheet_columns)        
 
         driver = webdriver.Firefox()
-        next_date = get_next_date()
+        next_date = get_daystr(cur_year, cur_month, cur_day)
 
         # Go through each day of the year specified in command line (1st arg)
         while next_date:
@@ -325,7 +330,7 @@ parser.add_argument('--year', '-y', dest='cur_year', action='store', required=Tr
                     help='year to crawl', type=int)
 parser.add_argument('--month', '-m', dest='cur_month', action='store', default=1, type=int,
                     help='month to start from (as integer, e.g. 4 for April), Default: start in January')
-parser.add_argument('--day', '-d', dest='cur_day', action='store', default=0, type=int,
+parser.add_argument('--day', '-d', dest='cur_day', action='store', default=1, type=int,
                     help='day to start from (as integer), Default: start on first day of month')
 parser.add_argument('--range', '-r', choices=['m', 'd', 'y'], default='y', action='store',
                     help="Keep searching until the end of the specified month, day, or year? Default: y")
