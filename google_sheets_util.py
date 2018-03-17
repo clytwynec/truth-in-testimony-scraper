@@ -16,8 +16,12 @@ creds = ServiceAccountCredentials.from_json_keyfile_name('client_secret.json', s
 client = gspread.authorize(creds)
 
 
-def new_worksheet(sheet_name):
-    client.open("ttf_crawler_records").add_worksheet(sheet_name, 0, 0)
+def get_or_create_worksheet(sheet_name, sheet_columns):
+    try:
+        client.open("ttf_crawler_records").worksheet(sheet_name)
+    except:
+        client.open("ttf_crawler_records").add_worksheet(sheet_name, 0, 0)
+        append_row(sheet_name, sheet_columns)
 
 
 def append_row(sheet_name, data):
