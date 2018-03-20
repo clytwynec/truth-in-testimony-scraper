@@ -10,6 +10,7 @@ import time
 
 import requests
 from selenium import webdriver
+from selenium.common.exceptions import WebDriverException
 from termcolor import colored
 
 from boto_util import upload_to_s3
@@ -19,6 +20,7 @@ import google_sheets_util as sheets
 #############################################################################
 # GLOBAL VARS
 sheet_columns = [
+    'uid',
     'event_id',
     'event_title',
     'event_committees',
@@ -45,7 +47,7 @@ def looks_like_ttf(url):
     Returns: Bool
     """
     fn = url.split("/")[-1].lower()
-    return ('-ttf-' in fn) or ('disclosure' in fn) or ('truthintest' in fn) or ('-wstate-' in fn and 'sd0' in fn)
+    return ('-ttf-' in fn) or ('disclosure' in fn) or ('truthintest' in fn) #or ('-wstate-' in fn and 'sd0' in fn)
 
 
 def save_ttf_files(event):
@@ -84,7 +86,7 @@ def save_ttf_info(info):
         # Store metadata in google sheets
         print colored('********* Saving metadata for: ' + info['witness_name'] + ' ' + info['event_id'], 'cyan')        
         sheets.append_row(sheet_name, [info[col] for col in sheet_columns])
-        time.sleep(1)
+        time.sleep(2)
     else: 
         print colored('********* Would save metadata for: ' + info['witness_name'] + ' ' + info['event_id'], 'grey')        
 
@@ -120,7 +122,7 @@ def get_next_date(tries_left=3):
         return get_next_date(tries_left - 1)
 
 
-def fetch_day_sched(driver, date):
+def fetch_day_sched(driver, date, retries_left=5):
     """
     Goes to docs.house.gov schedule for date and collects info for each meeting.
 
@@ -129,11 +131,18 @@ def fetch_day_sched(driver, date):
         date: a date (in format mmddyyy)
     Returns: List of meetings_urls.
     """
-    url = day_url(date)
-    driver.get(url)
-    elems = get_elems(driver, "//a[@href]") or []
-    hrefs = [elem.get_attribute("href") for elem in elems]
-    return [href for href in hrefs if looks_like_event(href)]
+    try: 
+        url = day_url(date)
+        driver.get(url)
+        elems = get_elems(driver, "//a[@href]") or []
+        hrefs = [elem.get_attribute("href") for elem in elems]
+        return [href for href in hrefs if looks_like_event(href)]
+    except WebDriverException:
+        if retries_left:
+            print 'Timedout fetching day ' + date + ', retrying'
+            return fetch_day_sched(driver, date, retries_left - 1)
+        else:
+            raise
 
 
 #############################################################################
@@ -298,7 +307,10 @@ def crawl_it():
                 for witness in updated_event['witnesses']:
                     print colored('PROCESSING witness: ' + witness['witness_name'], 'white')
                     witnesses_found += 1
-                    info = {}
+                    uid_hashable = (event['info']['event_id'] + witness['witness_name'] + witness['witness_desc']).encode('utf-8', 'replace')
+                    info = {
+                        'uid': sheets.calc_uid(uid_hashable)
+                    }
                     info.update(event['info'])
                     info.update(witness)
                     save_ttf_info(info)
