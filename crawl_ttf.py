@@ -40,14 +40,15 @@ witnesses_found = 0
 #############################################################################
 # TTF FILES & DATA STORAGE
 
-def looks_like_ttf(url):
-    """
-    Args:
-        url: String 
-    Returns: Bool
-    """
-    fn = url.split("/")[-1].lower()
-    return ('-ttf-' in fn) or ('disclosure' in fn) or ('truthintest' in fn) #or ('-wstate-' in fn and 'sd0' in fn)
+# OUTDATED
+# def looks_like_ttf(url):
+#     """
+#     Args:
+#         url: String 
+#     Returns: Bool
+#     """
+#     fn = url.split("/")[-1].lower()
+#     return ('-ttf-' in fn) or ('disclosure' in fn) or ('truthintest' in fn) or ('if17-wstate' in fn and 'sd002' in fn)
 
 
 def save_ttf_files(event):
@@ -209,14 +210,17 @@ def fetch_events(driver, event_urls):
             if witness_name == 'ERROR':
                 continue
 
-            witness_links = get_elems(witness, ".//a[@href]")
-            witness_hrefs = [link.get_attribute("href") for link in witness_links]
-            ttf_urls = [href for href in witness_hrefs if looks_like_ttf(href)]
+            witness_docs = get_elems(witness, ".//li")
+            ttf_docs = [li for li in witness_docs if "truth in testimony" in li.text.lower()]
+            witness_href = None
+            if len(ttf_docs):
+                witness_link = get_first_elem(ttf_docs[0], ".//a[@href]")
+                witness_href = witness_link.get_attribute("href")
 
             event['witnesses'].append({
                 'witness_name': witness_name,
                 'witness_desc': get_elem_text(get_first_elem(witness, './p/small')),
-                'ttf_url': ttf_urls[0] if ttf_urls else None,
+                'ttf_url': witness_href,
                 'ttf_url_s3': None,
             })
 
@@ -344,8 +348,9 @@ parser.add_argument('--month', '-m', dest='cur_month', action='store', default=1
                     help='month to start from (as integer, e.g. 4 for April), Default: start in January')
 parser.add_argument('--day', '-d', dest='cur_day', action='store', default=1, type=int,
                     help='day to start from (as integer), Default: start on first day of month')
-parser.add_argument('--range', '-r', choices=['m', 'd', 'y'], default='y', action='store',
-                    help="Keep searching until the end of the specified month, day, or year? Default: y")
+# TODO
+# parser.add_argument('--range', '-r', choices=['m', 'd', 'y'], default='y', action='store',
+#                     help="Keep searching until the end of the specified month, day, or year? Default: y")
 
 args = parser.parse_args()
 
@@ -354,6 +359,6 @@ cur_month = args.cur_month
 cur_day = args.cur_day
 cur_year = args.cur_year
 keep_data = args.keep_data
-sheet_name = args.sheet_name or (cur_year + '_crawled_at_'+ str(dt.utcnow()).replace(':', '-').replace(' ', '-'))
+sheet_name = args.sheet_name or (str(cur_year) + '_crawled_at_'+ str(dt.utcnow()).replace(':', '-').replace(' ', '-'))
 
 crawl_it()
