@@ -212,9 +212,11 @@ def fetch_events(driver, event_urls):
 
             witness_docs = get_elems(witness, ".//li")
             ttf_docs = [li for li in witness_docs if "truth in testimony" in li.text.lower()]
+            witness_link = None
             witness_href = None
             if len(ttf_docs):
                 witness_link = get_first_elem(ttf_docs[0], ".//a[@href]")
+            if witness_link:
                 witness_href = witness_link.get_attribute("href")
 
             event['witnesses'].append({
