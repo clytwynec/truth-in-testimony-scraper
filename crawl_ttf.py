@@ -9,6 +9,7 @@ import os
 import time
 
 import requests
+from requests.exceptions import ConnectionError
 from selenium import webdriver
 from selenium.common.exceptions import WebDriverException
 from termcolor import colored
@@ -22,6 +23,7 @@ import google_sheets_util as sheets
 sheet_columns = [
     'uid',
     'event_id',
+    'event_url',
     'event_title',
     'event_committees',
     'event_datetime',
@@ -61,7 +63,11 @@ def save_ttf_files(event):
         ttfs_found += 1 
 
         # Fetch the content at that URL
-        r = requests.get(witness['ttf_url'], stream=True)
+        try:
+            r = requests.get(witness['ttf_url'], stream=True)
+        except ConnectionError as err:
+            print colored("Error fetching TTF file at %s. \n\t %s" % (witness['ttf_url'], err), 'red')
+            continue
 
         # Check that content-type is a PDF
         if not r.headers['Content-Type']=='application/pdf':
@@ -192,6 +198,7 @@ def fetch_events(driver, event_urls):
         event = {
             'info': {
                 'event_id': url.split("=")[1],
+                'event_url': url,
                 'event_title': get_elem_text(get_first_elem(driver, '//*[@id="previewPanel"]/div[@class="well"]/h1')),
                 'event_committees': get_elem_text(get_first_elem(driver, '//*[@id="previewPanel"]/div[@class="well"]/h1/small')),
                 'event_datetime': get_elem_text(get_first_elem(driver, '//*[@id="previewPanel"]/div[@class="meeting-date"]')),
@@ -272,7 +279,7 @@ def get_first_elem(driver, xpath, retry=3):
 
 def print_crawl_summary():
     print '____CRAWL SUMMARY____'
-    print 'Crawled from 01-01-' + str(cur_year) + 'through 12-31-' + str(cur_year)
+    print 'Crawled from %d-%d-%d' % (args.cur_month, args.cur_day, cur_year) + 'through %d-%d-%d' % (cur_month, cur_day, cur_year)
     print str(events_found) + ' events found'
     print str(ttfs_found) + ' TTFs found\n'  
 
