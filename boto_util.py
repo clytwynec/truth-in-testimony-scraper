@@ -1,4 +1,7 @@
 # -*- coding: utf-8 -*-
+"""
+Needs AWS credentials to save the files to a bucket. See https://github.com/boto/boto3#quick-start.
+"""
 import boto3
 
 def upload_to_s3(file_data, file_path, bucket_name):
