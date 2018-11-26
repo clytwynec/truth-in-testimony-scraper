@@ -1,10 +1,8 @@
 # -*- coding: utf-8 -*-
-"""
-Usage: 
-"""
 import argparse
-from datetime import datetime as dt
-from datetime import date
+import csv
+import datetime as dt
+import hashlib
 import os
 import time
 
@@ -15,7 +13,6 @@ from selenium.common.exceptions import WebDriverException
 from termcolor import colored
 
 from boto_util import upload_to_s3
-import google_sheets_util as sheets
 
 
 #############################################################################
@@ -52,6 +49,16 @@ witnesses_found = 0
 #     fn = url.split("/")[-1].lower()
 #     return ('-ttf-' in fn) or ('disclosure' in fn) or ('truthintest' in fn) or ('if17-wstate' in fn and 'sd002' in fn)
 
+def calc_uid(hashable):
+    h = hashlib.new('ripemd160')
+    h.update(hashable)
+    return h.hexdigest()
+
+def save_csv_row(sheetname, row):
+    with open(sheetname, mode='a') as ttf_records:
+        ttf_records_writer = csv.writer(ttf_records)
+        encoded = [str(r.encode('utf8')) if r else r for r in row]
+        ttf_records_writer.writerow(encoded)
 
 def save_ttf_files(event):
     global ttfs_found
@@ -90,10 +97,7 @@ def save_ttf_files(event):
 
 def save_ttf_info(info):
     if keep_data:
-        # Store metadata in google sheets
-        print colored('********* Saving metadata for: ' + info['witness_name'] + ' ' + info['event_id'], 'cyan')        
-        sheets.append_row(sheet_name, [info[col] for col in sheet_columns])
-        time.sleep(2)
+        save_csv_row(sheet_name, [info[col] for col in sheet_columns])
     else: 
         print colored('********* Would save metadata for: ' + info['witness_name'] + ' ' + info['event_id'], 'grey')        
 
@@ -107,7 +111,7 @@ def day_url(daystr):
 
 
 def get_daystr(y, m, d):
-    return date(y, m, d).strftime("%m%d%Y")
+    return dt.date(y, m, d).strftime("%m%d%Y")
 
 
 def get_next_date(tries_left=3):
@@ -218,7 +222,19 @@ def fetch_events(driver, event_urls):
                 continue
 
             witness_docs = get_elems(witness, ".//li")
-            ttf_docs = [li for li in witness_docs if "truth in testimony" in li.text.lower()]
+
+            def is_ttf(li):
+                text = li.text.lower()
+                if (
+                    "truth in testimony" in text
+                    or "disclosure" in text
+                    or "related witness support document" in text
+                ):
+                    return True
+                else:
+                    return False
+
+            ttf_docs = [li for li in witness_docs if is_ttf(li)]
             witness_link = None
             witness_href = None
             if len(ttf_docs):
@@ -289,9 +305,10 @@ def crawl_it():
     global witnesses_found
     global events_found
 
+
     try:
         if keep_data:
-            sheets.get_or_create_worksheet(sheet_name, sheet_columns)        
+            save_csv_row(sheet_name, sheet_columns)
 
         driver = webdriver.Firefox()
         next_date = get_daystr(cur_year, cur_month, cur_day)
@@ -322,7 +339,8 @@ def crawl_it():
                     witnesses_found += 1
                     uid_hashable = (event['info']['event_id'] + witness['witness_name'] + witness['witness_desc']).encode('utf-8', 'replace')
                     info = {
-                        'uid': sheets.calc_uid(uid_hashable)
+                        'uid': calc_uid(uid_hashable),
+                        'date_retrieved': dt.date.today(),
                     }
                     info.update(event['info'])
                     info.update(witness)
@@ -340,11 +358,12 @@ def crawl_it():
 
 parser = argparse.ArgumentParser(description='''
             Crawl docs.house.gov looking for TTFs.
-            e.g. `python crawl_ttf.py -y 2017 -m 3 -s '2017_03_ttfs' -r m`
-            will crawl for TTFs from meetings during March 2017 and store them in a spreadsheet titled 2017_03_ttfs
+            e.g. `python crawl_ttf.py -y 2017 -m 3 -s 2017_03_ttfs`
+            will crawl for TTFs from meetings from March 2017 until the end of 2017
+            and store them in a CSV titled 2017_03_ttfs.
             
             Specifying the file name and month/day can let you restart the crawl from the point of failure
-            in case there is a network issue or some other transient error.
+            in case of a network issue or some other transient error.
         ''')
 
 parser.add_argument('--dryrun', dest='keep_data', action='store_false', default=True,
@@ -357,17 +376,13 @@ parser.add_argument('--month', '-m', dest='cur_month', action='store', default=1
                     help='month to start from (as integer, e.g. 4 for April), Default: start in January')
 parser.add_argument('--day', '-d', dest='cur_day', action='store', default=1, type=int,
                     help='day to start from (as integer), Default: start on first day of month')
-# TODO
-# parser.add_argument('--range', '-r', choices=['m', 'd', 'y'], default='y', action='store',
-#                     help="Keep searching until the end of the specified month, day, or year? Default: y")
 
 args = parser.parse_args()
-
 
 cur_month = args.cur_month
 cur_day = args.cur_day
 cur_year = args.cur_year
 keep_data = args.keep_data
-sheet_name = args.sheet_name or (str(cur_year) + '_crawled_at_'+ str(dt.utcnow()).replace(':', '-').replace(' ', '-'))
+sheet_name = args.sheet_name or (str(cur_year) + '_crawled_at_'+ str(dt.datetime.utcnow()).replace(':', '-').replace(' ', '-'))
 
 crawl_it()
