@@ -224,9 +224,16 @@ def fetch_events(driver, event_urls):
             witness_docs = get_elems(witness, ".//li")
 
             def is_ttf(li):
+                link = get_first_elem(li, ".//a[@href]")
+                if not link:
+                    return False
+                
+                link_url = link.get_attribute("href").lower()
                 text = li.text.lower()
+                
                 if (
-                    "truth in testimony" in text
+                    "-ttf-" in link_url
+                    or "truth in testimony" in text
                     or "disclosure" in text
                     or "related witness support document" in text
                 ):
