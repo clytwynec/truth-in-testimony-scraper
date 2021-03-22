@@ -45,4 +45,4 @@ for i, desc in data_main['witness_desc'].iteritems():
             continue
 
 print "Processed %d rows" % count
-data_main.to_csv('ttf_w_tt.csv')
+data_main.to_csv('ttf_w_tt.csv', encoding="utf-8")
