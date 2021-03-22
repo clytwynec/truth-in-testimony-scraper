@@ -8,7 +8,7 @@ Puts files into S3 and stores metadata in a CSV.
 ![Story Image](https://stine-stuff.s3.amazonaws.com/images/ttf_post_img.original.png)
 
 This code was used in an investigative journalism project looking at the implementation and effectiveness of the "Truth in Testimony" rule in the U.S. House of Representatives which requires those who testify before the House to disclose any foreign funding related to the hearing at which they testify. The final product includes a [4000+ word story](http://investigativereportingworkshop.org/investigation/foreign-influence/), [a database of the testimonies and an description of our process](https://investigativereportingworkshop.org/news/foreign-influence-how-we-built-the-database-of-expert-testimony/), and a ["by the numbers" overview](https://investigativereportingworkshop.org/news/foreign-influence-house-transparency-in-numbers/) of our findings.
-This code is not gerneralized, but kept available for transparency and as a resource for others interested in similar projects.
+This code is not generalized, but kept available for transparency and as a resource for others interested in similar projects.
 
 ## Installation
 
